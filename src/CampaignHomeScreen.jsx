@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Swords, Scroll, Users } from 'lucide-react';
 import * as AirtableService from './airtableService';
+import AddPlayerModal from './AddPlayerModal';
+import AddDeckModal from './AddDeckModal';
 
-export default function CampaignHomeScreen({ players, decks, onNavigate, onSetStatsView }) {
+export default function CampaignHomeScreen({ players, decks, onNavigate, onSetStatsView, onPlayersUpdated, onDecksUpdated }) {
   const [stats, setStats] = useState({ totalGames: 0, totalPlayers: players.length, totalDecks: decks.length });
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [showAddDeck, setShowAddDeck] = useState(false);
   
   useEffect(() => {
     loadQuickStats();
@@ -21,6 +25,16 @@ export default function CampaignHomeScreen({ players, decks, onNavigate, onSetSt
       console.error('Error loading stats:', error);
     }
   }
+
+  const handlePlayerAdded = (newPlayer) => {
+    onPlayersUpdated([...players, newPlayer]);
+    setStats({ ...stats, totalPlayers: players.length + 1 });
+  };
+
+  const handleDeckAdded = (newDeck) => {
+    onDecksUpdated([...decks, newDeck]);
+    setStats({ ...stats, totalDecks: decks.length + 1 });
+  };
   
   return (
     <div className="min-h-screen bg-white relative overflow-hidden font-sans">
@@ -281,6 +295,89 @@ export default function CampaignHomeScreen({ players, decks, onNavigate, onSetSt
               />
             </button>
           </div>
+
+          {/* Add Player/Deck buttons */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button
+              onClick={() => setShowAddPlayer(true)}
+              className="relative group"
+            >
+              <svg 
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 200 60"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  x="3" y="3" 
+                  width="194" height="54"
+                  fill="white"
+                  stroke="#000"
+                  strokeWidth="2"
+                  rx="6"
+                  style={{
+                    filter: 'url(#rough)',
+                    strokeDasharray: '2,1',
+                  }}
+                />
+              </svg>
+              
+              <div className="relative py-2 flex items-center justify-center gap-2">
+                <span 
+                  className="text-sm font-bold text-gray-700"
+                  style={{ fontFamily: "'Permanent Marker', cursive" }}
+                >
+                  + Add Player
+                </span>
+              </div>
+              
+              <div 
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none rounded-lg"
+                style={{
+                  background: 'linear-gradient(135deg, transparent 0%, rgba(129, 199, 132, 0.15) 50%, transparent 100%)'
+                }}
+              />
+            </button>
+
+            <button
+              onClick={() => setShowAddDeck(true)}
+              className="relative group"
+            >
+              <svg 
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 200 60"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  x="3" y="3" 
+                  width="194" height="54"
+                  fill="white"
+                  stroke="#000"
+                  strokeWidth="2"
+                  rx="6"
+                  style={{
+                    filter: 'url(#rough2)',
+                    strokeDasharray: '2,1',
+                  }}
+                />
+              </svg>
+              
+              <div className="relative py-2 flex items-center justify-center gap-2">
+                <span 
+                  className="text-sm font-bold text-gray-700"
+                  style={{ fontFamily: "'Permanent Marker', cursive" }}
+                >
+                  + Add Deck
+                </span>
+              </div>
+              
+              <div 
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none rounded-lg"
+                style={{
+                  background: 'linear-gradient(135deg, transparent 0%, rgba(33, 150, 243, 0.15) 50%, transparent 100%)'
+                }}
+              />
+            </button>
+          </div>
         </div>
 
         {/* Stats footer - notebook style */}
@@ -366,6 +463,22 @@ export default function CampaignHomeScreen({ players, decks, onNavigate, onSetSt
 
       {/* Google Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap" rel="stylesheet" />
+
+      {/* Modals */}
+      {showAddPlayer && (
+        <AddPlayerModal
+          onClose={() => setShowAddPlayer(false)}
+          onPlayerAdded={handlePlayerAdded}
+        />
+      )}
+
+      {showAddDeck && (
+        <AddDeckModal
+          players={players}
+          onClose={() => setShowAddDeck(false)}
+          onDeckAdded={handleDeckAdded}
+        />
+      )}
     </div>
   );
 }

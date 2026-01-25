@@ -123,6 +123,8 @@ export default function MTGCommanderApp() {
           decks={decks}
           onNavigate={setCurrentScreen}
           onSetStatsView={setStatsView}
+          onPlayersUpdated={setPlayers}
+          onDecksUpdated={setDecks}
         />
       )}
       

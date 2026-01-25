@@ -1,5 +1,5 @@
 // airtableService.js
-// Configure these with your actual credentials
+// Get credentials from environment variables
 const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
 const BASE_ID = import.meta.env.VITE_BASE_ID;
 

@@ -15,6 +15,16 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
     });
   };
 
+  const adjustPoison = (playerIndex, amount) => {
+    const newPlayerStates = [...game.playerStates];
+    const currentPoison = newPlayerStates[playerIndex].poison || 0;
+    newPlayerStates[playerIndex].poison = Math.max(0, Math.min(10, currentPoison + amount));
+    onUpdateGame({
+      ...game,
+      playerStates: newPlayerStates
+    });
+  };
+
   const adjustCommanderDamage = (playerIndex, commanderIndex, amount) => {
     const newPlayerStates = [...game.playerStates];
     const currentDamage = newPlayerStates[playerIndex].commanderDamage[commanderIndex].damage;
@@ -90,7 +100,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
               className="text-gray-600 mt-1 text-base"
               style={{ fontFamily: "'Indie Flower', cursive" }}
             >
-              Turn {game.turn} • {game.playerStates[game.currentPlayerIndex].player.name}'s turn
+              Turn {game.turn} â€¢ {game.playerStates[game.currentPlayerIndex].player.name}'s turn
             </p>
           </div>
           <button
@@ -130,7 +140,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
               className="text-xl font-bold text-gray-900"
               style={{ fontFamily: "'Permanent Marker', cursive" }}
             >
-              Next Turn →
+              Next Turn â†’
             </span>
           </div>
         </button>
@@ -141,7 +151,8 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
         {game.playerStates.map((playerState, idx) => {
           const isCurrentPlayer = idx === game.currentPlayerIndex;
           const color = playerColors[idx % playerColors.length];
-          const isDead = playerState.life === 0;
+          const poisonCount = playerState.poison || 0;
+          const isDead = playerState.life === 0 || poisonCount >= 10;
           
           return (
             <div
@@ -362,6 +373,168 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
                   </div>
                 </div>
 
+                {/* Poison Counters */}
+                <div className="bg-purple-50 rounded-xl border-2 border-purple-600 overflow-hidden mb-4" style={{ borderStyle: 'dashed' }}>
+                  <button
+                    onClick={() => setExpandedCommander(expandedCommander === `poison-${idx}` ? null : `poison-${idx}`)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-purple-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Skull size={18} className="text-purple-700" strokeWidth={2.5} />
+                      <span 
+                        className="text-base font-bold text-purple-900"
+                        style={{ fontFamily: "'Permanent Marker', cursive" }}
+                      >
+                        Poison
+                      </span>
+                      <div 
+                        className="text-2xl font-bold text-purple-900 ml-2"
+                        style={{ 
+                          fontFamily: "'Permanent Marker', cursive",
+                          color: poisonCount >= 10 ? '#7B1FA2' : 
+                                 poisonCount >= 7 ? '#9C27B0' : 
+                                 '#6A1B9A'
+                        }}
+                      >
+                        {poisonCount}
+                      </div>
+                      {poisonCount >= 7 && (
+                        <span className="text-lg ml-1">
+                          {poisonCount >= 10 ? '☠️' : '⚠️'}
+                        </span>
+                      )}
+                    </div>
+                    {expandedCommander === `poison-${idx}` ? (
+                      <ChevronUp size={18} className="text-purple-700" />
+                    ) : (
+                      <ChevronDown size={18} className="text-purple-700" />
+                    )}
+                  </button>
+                  
+                  {expandedCommander === `poison-${idx}` && (
+                    <div className="px-4 pb-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {poisonCount >= 7 && poisonCount < 10 && (
+                        <div 
+                          className="text-center text-sm font-bold text-purple-800 uppercase"
+                          style={{ fontFamily: "'Permanent Marker', cursive" }}
+                        >
+                          ⚠️ Danger Zone!
+                        </div>
+                      )}
+                      
+                      {poisonCount >= 10 && (
+                        <div 
+                          className="text-center text-sm font-bold text-purple-900 uppercase animate-pulse"
+                          style={{ fontFamily: "'Permanent Marker', cursive" }}
+                        >
+                          ☠️ LETHAL! ☠️
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-4 gap-2">
+                        <button
+                          onClick={() => adjustPoison(idx, -1)}
+                          disabled={poisonCount === 0}
+                          className="relative group disabled:opacity-30"
+                        >
+                          <svg 
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox="0 0 100 60"
+                            preserveAspectRatio="none"
+                          >
+                            <rect
+                              x="2" y="2" 
+                              width="96" height="56"
+                              fill="#E1BEE7"
+                              stroke="#7B1FA2"
+                              strokeWidth="2.5"
+                              rx="6"
+                              style={{
+                                filter: 'url(#rough3)',
+                                strokeDasharray: '2,1',
+                              }}
+                            />
+                          </svg>
+                          <div className="relative py-3 text-center">
+                            <span 
+                              className="text-lg font-bold text-purple-900"
+                              style={{ fontFamily: "'Permanent Marker', cursive" }}
+                            >
+                              -1
+                            </span>
+                          </div>
+                        </button>
+                        
+                        <button
+                          onClick={() => adjustPoison(idx, 1)}
+                          disabled={poisonCount >= 10}
+                          className="relative group disabled:opacity-30 col-span-2"
+                        >
+                          <svg 
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox="0 0 200 60"
+                            preserveAspectRatio="none"
+                          >
+                            <rect
+                              x="2" y="2" 
+                              width="196" height="56"
+                              fill="#CE93D8"
+                              stroke="#6A1B9A"
+                              strokeWidth="2.5"
+                              rx="6"
+                              style={{
+                                filter: 'url(#rough3)',
+                                strokeDasharray: '2,1',
+                              }}
+                            />
+                          </svg>
+                          <div className="relative py-3 text-center">
+                            <span 
+                              className="text-lg font-bold text-purple-900"
+                              style={{ fontFamily: "'Permanent Marker', cursive" }}
+                            >
+                              +1
+                            </span>
+                          </div>
+                        </button>
+                        
+                        <button
+                          onClick={() => adjustPoison(idx, 0) || adjustPoison(idx, -poisonCount)}
+                          disabled={poisonCount === 0}
+                          className="relative group disabled:opacity-30"
+                        >
+                          <svg 
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox="0 0 100 60"
+                            preserveAspectRatio="none"
+                          >
+                            <rect
+                              x="2" y="2" 
+                              width="96" height="56"
+                              fill="#F3E5F5"
+                              stroke="#8E24AA"
+                              strokeWidth="2.5"
+                              rx="6"
+                              style={{
+                                filter: 'url(#rough3)',
+                                strokeDasharray: '2,1',
+                              }}
+                            />
+                          </svg>
+                          <div className="relative py-3 text-center">
+                            <span 
+                              className="text-sm font-bold text-purple-900"
+                              style={{ fontFamily: "'Permanent Marker', cursive" }}
+                            >
+                              Clear
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Commander damage - only for players with commanderDamage array */}
                 {playerState.commanderDamage && playerState.commanderDamage.length > 0 && (
                   <div className="bg-orange-50 rounded-xl border-2 border-orange-600 overflow-hidden" style={{ borderStyle: 'dashed' }}>
@@ -428,7 +601,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
                                 className="mt-2 text-xs text-red-600 font-bold text-center uppercase"
                                 style={{ fontFamily: "'Permanent Marker', cursive" }}
                               >
-                                ☠ Lethal! ☠
+                                â˜  Lethal! â˜ 
                               </div>
                             )}
                           </div>
@@ -509,7 +682,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
                     className="text-gray-700 hover:text-gray-900 text-sm flex items-center gap-2 font-bold"
                     style={{ fontFamily: "'Indie Flower', cursive" }}
                   >
-                    ← Back to list
+                    â† Back to list
                   </button>
                   <img
                     src={`https://api.scryfall.com/cards/${selectedCommanderCard.deck.scryfallId}?format=image&version=large`}
@@ -566,7 +739,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
                             {playerState.player.name}
                           </p>
                         </div>
-                        <span className="text-2xl">→</span>
+                        <span className="text-2xl">â†’</span>
                       </div>
                     </button>
                   ))}

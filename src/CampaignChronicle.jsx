@@ -23,12 +23,12 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
     '4th': { bg: '#E0E0E0', border: '#9E9E9E', text: '#616161' },
   };
 
-  const togglePlacement = (playerAirtableId, placement) => {
-    const currentPlacement = placements[playerAirtableId];
+  const togglePlacement = (playerKey, placement) => {
+    const currentPlacement = placements[playerKey];
     
     if (currentPlacement === placement) {
       const newPlacements = { ...placements };
-      delete newPlacements[playerAirtableId];
+      delete newPlacements[playerKey];
       setPlacements(newPlacements);
     } else {
       const playerWithPlacement = Object.keys(placements).find(
@@ -38,13 +38,13 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
       if (playerWithPlacement) {
         setPlacements({
           ...placements,
-          [playerAirtableId]: placement,
+          [playerKey]: placement,
           [playerWithPlacement]: currentPlacement
         });
       } else {
         setPlacements({
           ...placements,
-          [playerAirtableId]: placement
+          [playerKey]: placement
         });
       }
     }
@@ -55,7 +55,8 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
   function handleSave() {
     const finalLifeTotals = {};
     game.playerStates.forEach(ps => {
-      finalLifeTotals[ps.player.airtableId] = ps.life;
+      const key = ps.player.airtableId || ps.player.name; // Use name for guests
+      finalLifeTotals[key] = ps.life;
     });
     
     onSave({
@@ -181,10 +182,11 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
           </h2>
           <div className="space-y-4">
             {game.playerStates.map((playerState) => {
-              const playerPlacement = placements[playerState.player.airtableId];
+              const playerKey = playerState.player.airtableId || playerState.player.name; // Use name for guests
+              const playerPlacement = placements[playerKey];
               
               return (
-                <div key={playerState.player.airtableId} className="relative">
+                <div key={playerKey} className="relative">
                   <svg 
                     className="absolute inset-0 w-full h-full pointer-events-none"
                     viewBox="0 0 400 180"
@@ -222,6 +224,11 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
                           style={{ fontFamily: "'Permanent Marker', cursive" }}
                         >
                           {playerState.player.name}
+                          {playerState.isGuest && (
+                            <span className="ml-2 text-sm text-orange-600 font-normal">
+                              (Guest)
+                            </span>
+                          )}
                         </h3>
                         <p 
                           className="text-sm text-gray-600"
@@ -240,7 +247,7 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
                         return (
                           <button
                             key={placement}
-                            onClick={() => togglePlacement(playerState.player.airtableId, placement)}
+                            onClick={() => togglePlacement(playerKey, placement)}
                             className="relative"
                           >
                             <svg 

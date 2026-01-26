@@ -167,6 +167,70 @@ export default function CampaignHomeScreen({ players, decks, onNavigate, onSetSt
             />
           </button>
 
+          {/* Solo Battle button - secondary action */}
+          <button
+            onClick={() => onNavigate('solo-setup')}
+            className="w-full relative group"
+          >
+            {/* Sketchy border */}
+            <svg 
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 400 140"
+              preserveAspectRatio="none"
+            >
+              <rect
+                x="4" y="4" 
+                width="392" height="132"
+                fill="#FFE0B2"
+                stroke="#000"
+                strokeWidth="3"
+                rx="8"
+                style={{
+                  filter: 'url(#rough)',
+                  strokeDasharray: '2,1',
+                }}
+              />
+            </svg>
+            
+            <div className="relative p-6 flex items-center justify-between">
+              <div className="text-left">
+                <h2 
+                  className="text-3xl font-bold text-gray-900 mb-2"
+                  style={{ fontFamily: "'Permanent Marker', cursive" }}
+                >
+                  Solo Battle
+                </h2>
+                <p 
+                  className="text-gray-700 text-sm"
+                  style={{ fontFamily: "'Indie Flower', cursive" }}
+                >
+                  Track your deck at the game store
+                </p>
+              </div>
+              
+              {/* Hand-drawn user icon */}
+              <div className="relative">
+                <Users 
+                  size={40} 
+                  className="text-gray-800"
+                  strokeWidth={2.5}
+                  style={{
+                    filter: 'drop-shadow(2px 2px 0px rgba(255, 152, 0, 0.5))',
+                    transform: 'rotate(-5deg)'
+                  }}
+                />
+              </div>
+            </div>
+            
+            {/* Highlight marker effect */}
+            <div 
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none rounded-lg"
+              style={{
+                background: 'linear-gradient(120deg, transparent 0%, rgba(255, 167, 38, 0.2) 50%, transparent 100%)'
+              }}
+            />
+          </button>
+
           {/* Secondary buttons grid - sketchy cards */}
           <div className="grid grid-cols-2 gap-4">
             {/* Legends */}

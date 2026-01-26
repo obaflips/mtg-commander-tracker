@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, BarChart3, Users, BookOpen } from 'lucide-react';
 import * as AirtableService from './airtableService';
 import CampaignGameSetup from './CampaignGameSetup';
+import CampaignSoloGameSetup from './CampaignSoloGameSetup';
 import CampaignBattleTracker from './CampaignBattleTracker';
 import CampaignChronicle from './CampaignChronicle';
 import CampaignLegends from './CampaignLegends';
@@ -13,7 +14,7 @@ import CampaignHomeScreen from './CampaignHomeScreen';
 // ============================================
 
 export default function MTGCommanderApp() {
-  const [currentScreen, setCurrentScreen] = useState('home'); // home, setup, game, endgame, stats
+  const [currentScreen, setCurrentScreen] = useState('home'); // home, setup, solo-setup, game, endgame, stats
   const [statsView, setStatsView] = useState('legends'); // 'legends' or 'heroes'
   const [players, setPlayers] = useState([]);
   const [decks, setDecks] = useState([]);
@@ -47,14 +48,59 @@ export default function MTGCommanderApp() {
     // gameSetup: { selectedPlayers: [{player, deck}, ...] }
     setCurrentGame({
       setup: gameSetup,
+      isSoloMode: false,
       turn: 1,
       currentPlayerIndex: 0,
       playerStates: gameSetup.selectedPlayers.map(sp => ({
         player: sp.player,
         deck: sp.deck,
         life: 40,
+        isGuest: false,
         commanderDamage: gameSetup.selectedPlayers
           .filter(other => other.player.airtableId !== sp.player.airtableId)
+          .map(other => ({
+            from: other.deck.commanderName,
+            damage: 0
+          }))
+      }))
+    });
+    setCurrentScreen('game');
+  }
+  
+  function startSoloGame(soloSetup) {
+    // soloSetup: { isSoloMode: true, yourPlayer, yourDeck, opponents: [{commanderName, scryfallId, colors}] }
+    const allPlayers = [
+      {
+        player: soloSetup.yourPlayer,
+        deck: soloSetup.yourDeck,
+        isGuest: false,
+      },
+      ...soloSetup.opponents.map(opp => ({
+        player: { name: 'Guest', airtableId: null },
+        deck: {
+          commanderName: opp.commanderName,
+          scryfallId: opp.scryfallId,
+          colors: opp.colors,
+        },
+        isGuest: true,
+        guestData: opp,
+      }))
+    ];
+    
+    setCurrentGame({
+      setup: { selectedPlayers: allPlayers },
+      isSoloMode: true,
+      soloData: soloSetup,
+      turn: 1,
+      currentPlayerIndex: 0,
+      playerStates: allPlayers.map((sp, idx) => ({
+        player: sp.player,
+        deck: sp.deck,
+        isGuest: sp.isGuest || false,
+        guestData: sp.guestData,
+        life: 40,
+        commanderDamage: allPlayers
+          .filter((other, otherIdx) => otherIdx !== idx)
           .map(other => ({
             from: other.deck.commanderName,
             damage: 0
@@ -81,12 +127,29 @@ export default function MTGCommanderApp() {
         turns: finalResults.turns,
         numberOfPlayers: currentGame.setup.selectedPlayers.length,
         winCondition: finalResults.winCondition,
-        participants: currentGame.setup.selectedPlayers.map((sp, idx) => ({
-          playerAirtableId: sp.player.airtableId,
-          deckAirtableId: sp.deck.airtableId,
-          placement: finalResults.placements[sp.player.airtableId],
-          finalLifeTotal: finalResults.finalLifeTotals?.[sp.player.airtableId] || 0
-        }))
+        participants: currentGame.setup.selectedPlayers.map((sp) => {
+          // For regular players
+          if (!sp.isGuest) {
+            return {
+              playerAirtableId: sp.player.airtableId,
+              deckAirtableId: sp.deck.airtableId,
+              placement: finalResults.placements[sp.player.airtableId || sp.player.name],
+              finalLifeTotal: finalResults.finalLifeTotals?.[sp.player.airtableId || sp.player.name] || 0,
+              isGuest: false,
+            };
+          }
+          // For guest players (solo mode)
+          else {
+            return {
+              isGuest: true,
+              guestCommanderName: sp.deck.commanderName,
+              guestCommanderScryfallId: sp.deck.scryfallId,
+              guestCommanderColors: sp.deck.colors,
+              placement: finalResults.placements[sp.player.name],
+              finalLifeTotal: finalResults.finalLifeTotals?.[sp.player.name] || 0,
+            };
+          }
+        })
       };
       
       await AirtableService.saveCompleteGame(gameData);
@@ -134,6 +197,15 @@ export default function MTGCommanderApp() {
           decks={decks}
           onBack={() => setCurrentScreen('home')}
           onStartGame={startNewGame}
+        />
+      )}
+      
+      {currentScreen === 'solo-setup' && (
+        <CampaignSoloGameSetup
+          players={players}
+          decks={decks}
+          onBack={() => setCurrentScreen('home')}
+          onStartGame={startSoloGame}
         />
       )}
       

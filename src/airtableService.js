@@ -145,22 +145,42 @@ export async function getGameParticipants(gameAirtableId = null) {
     deck: record.fields.Deck, // Array of linked record IDs
     placement: record.fields.Placement,
     finalLifeTotal: record.fields['Final Life Total'],
+    // Solo mode fields
+    isGuest: record.fields['Is Guest'] || false,
+    guestCommanderName: record.fields['Guest Commander Name'],
+    guestCommanderScryfallId: record.fields['Guest Commander Scryfall ID'],
+    guestCommanderColors: record.fields['Guest Commander Colors'] || [],
   }));
 }
 
 export async function createGameParticipant(participantData) {
   // participantData: { gameAirtableId, playerAirtableId, deckAirtableId, placement, finalLifeTotal }
+  // OR for guests: { gameAirtableId, isGuest: true, guestCommanderName, guestCommanderScryfallId, placement, finalLifeTotal }
+  
+  const fields = {
+    Game: [participantData.gameAirtableId],
+    Placement: participantData.placement,
+    'Final Life Total': participantData.finalLifeTotal || 0,
+  };
+  
+  // Add regular player/deck fields OR guest fields
+  if (participantData.isGuest) {
+    fields['Is Guest'] = true;
+    fields['Guest Commander Name'] = participantData.guestCommanderName;
+    if (participantData.guestCommanderScryfallId) {
+      fields['Guest Commander Scryfall ID'] = participantData.guestCommanderScryfallId;
+    }
+    if (participantData.guestCommanderColors) {
+      fields['Guest Commander Colors'] = participantData.guestCommanderColors;
+    }
+  } else {
+    fields['Player'] = [participantData.playerAirtableId];
+    fields['Deck'] = [participantData.deckAirtableId];
+  }
+  
   const data = await airtableRequest('Game%20Participants', {
     method: 'POST',
-    body: JSON.stringify({
-      fields: {
-        Game: [participantData.gameAirtableId],
-        Player: [participantData.playerAirtableId],
-        Deck: [participantData.deckAirtableId],
-        Placement: participantData.placement,
-        'Final Life Total': participantData.finalLifeTotal || 0,
-      },
-    }),
+    body: JSON.stringify({ fields }),
   });
 
   return {
@@ -174,15 +194,30 @@ export async function createMultipleParticipants(participantsArray) {
   const data = await airtableRequest('Game%20Participants', {
     method: 'POST',
     body: JSON.stringify({
-      records: participantsArray.map(p => ({
-        fields: {
+      records: participantsArray.map(p => {
+        const fields = {
           Game: [p.gameAirtableId],
-          Player: [p.playerAirtableId],
-          Deck: [p.deckAirtableId],
           Placement: p.placement,
           'Final Life Total': p.finalLifeTotal || 0,
-        },
-      })),
+        };
+        
+        // Add regular player/deck fields OR guest fields
+        if (p.isGuest) {
+          fields['Is Guest'] = true;
+          fields['Guest Commander Name'] = p.guestCommanderName;
+          if (p.guestCommanderScryfallId) {
+            fields['Guest Commander Scryfall ID'] = p.guestCommanderScryfallId;
+          }
+          if (p.guestCommanderColors) {
+            fields['Guest Commander Colors'] = p.guestCommanderColors;
+          }
+        } else {
+          fields['Player'] = [p.playerAirtableId];
+          fields['Deck'] = [p.deckAirtableId];
+        }
+        
+        return { fields };
+      }),
     }),
   });
 
@@ -314,7 +349,15 @@ export async function saveCompleteGame(gameSetup) {
         placement: "1st",
         finalLifeTotal: 25
       },
-      // ... more participants
+      // OR for guests:
+      {
+        isGuest: true,
+        guestCommanderName: "Krenko, Mob Boss",
+        guestCommanderScryfallId: "...",
+        guestCommanderColors: ["R"],
+        placement: "2nd",
+        finalLifeTotal: 0
+      }
     ]
   }
   */
@@ -339,6 +382,11 @@ export async function saveCompleteGame(gameSetup) {
     deckAirtableId: p.deckAirtableId,
     placement: p.placement,
     finalLifeTotal: p.finalLifeTotal,
+    // Guest fields
+    isGuest: p.isGuest || false,
+    guestCommanderName: p.guestCommanderName,
+    guestCommanderScryfallId: p.guestCommanderScryfallId,
+    guestCommanderColors: p.guestCommanderColors,
   }));
   
   await createMultipleParticipants(participantsData);

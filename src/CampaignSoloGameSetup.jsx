@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Swords, ArrowLeft, User, Plus, Search } from 'lucide-react';
 
 export default function CampaignSoloGameSetup({ players, decks, onBack, onStartGame }) {
@@ -9,9 +9,33 @@ export default function CampaignSoloGameSetup({ players, decks, onBack, onStartG
   const [newOpponentName, setNewOpponentName] = useState('');
   const [searching, setSearching] = useState(false);
   const [scryfallPreview, setScryfallPreview] = useState(null);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   // Get YOUR decks only
   const yourDecks = decks;
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Close autocomplete when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showAutocomplete && !e.target.closest('input')) {
+        setShowAutocomplete(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showAutocomplete]);
 
   const handleSelectDeck = (deck) => {
     setSelectedDeck(deck);
@@ -21,15 +45,60 @@ export default function CampaignSoloGameSetup({ players, decks, onBack, onStartG
     setCurrentStep('add-opponents');
   };
 
-  const searchScryfall = async () => {
-    if (!newOpponentName.trim()) return;
+  // Autocomplete search with debouncing
+  const handleOpponentNameChange = (value) => {
+    setNewOpponentName(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Don't search if less than 2 characters
+    if (value.trim().length < 2) {
+      setAutocompleteSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+    
+    // Debounce the search by 300ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(value.trim())}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setAutocompleteSuggestions(data.data || []);
+          setShowAutocomplete(data.data && data.data.length > 0);
+        }
+      } catch (err) {
+        console.error('Autocomplete error:', err);
+      }
+    }, 300);
+  };
+
+  const selectSuggestion = async (commanderName) => {
+    setNewOpponentName(commanderName);
+    setShowAutocomplete(false);
+    setAutocompleteSuggestions([]);
+    
+    // Immediately search for the card details
+    await searchScryfall(commanderName);
+  };
+
+  const searchScryfall = async (nameOverride = null) => {
+    const searchName = nameOverride || newOpponentName.trim();
+    if (!searchName) return;
 
     try {
       setSearching(true);
       setScryfallPreview(null);
       
-      const response = await fetch(
-        `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(newOpponentName.trim())}`
+      // Try fuzzy search first
+      let response = await fetch(
+        `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(searchName)}`
       );
 
       if (response.ok) {
@@ -40,6 +109,8 @@ export default function CampaignSoloGameSetup({ players, decks, onBack, onStartG
           imageUrl: card.image_uris?.art_crop || card.image_uris?.normal,
           colors: card.colors || []
         });
+        // Update input with correct name
+        setNewOpponentName(card.name);
       }
     } catch (err) {
       console.error('Error searching Scryfall:', err);
@@ -366,31 +437,60 @@ export default function CampaignSoloGameSetup({ players, decks, onBack, onStartG
                   Add Opponent
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newOpponentName}
-                      onChange={(e) => setNewOpponentName(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          searchScryfall();
-                        }
-                      }}
-                      placeholder="Opponent's commander name"
-                      className="flex-1 px-4 py-3 border-2 border-gray-800 rounded-lg"
-                      style={{ fontFamily: "'Indie Flower', cursive" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={searchScryfall}
-                      disabled={searching || !newOpponentName.trim()}
-                      className="px-4 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 border-2 border-blue-700 flex items-center gap-2"
-                      style={{ fontFamily: "'Permanent Marker', cursive" }}
-                    >
-                      <Search size={20} />
-                      {searching ? '...' : 'Find'}
-                    </button>
+                  <div className="relative">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newOpponentName}
+                        onChange={(e) => handleOpponentNameChange(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchScryfall();
+                          }
+                        }}
+                        onFocus={() => {
+                          if (autocompleteSuggestions.length > 0) {
+                            setShowAutocomplete(true);
+                          }
+                        }}
+                        placeholder="Start typing commander name..."
+                        className="flex-1 px-4 py-3 border-2 border-gray-800 rounded-lg"
+                        style={{ fontFamily: "'Indie Flower', cursive" }}
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => searchScryfall()}
+                        disabled={searching || !newOpponentName.trim()}
+                        className="px-4 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 border-2 border-blue-700 flex items-center gap-2"
+                        style={{ fontFamily: "'Permanent Marker', cursive" }}
+                      >
+                        <Search size={20} />
+                        {searching ? '...' : 'Find'}
+                      </button>
+                    </div>
+
+                    {/* Autocomplete Dropdown */}
+                    {showAutocomplete && autocompleteSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-800 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                        {autocompleteSuggestions.slice(0, 8).map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => selectSuggestion(suggestion)}
+                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-200 last:border-b-0"
+                          >
+                            <span 
+                              className="text-gray-900 font-medium"
+                              style={{ fontFamily: "'Indie Flower', cursive", fontSize: '16px' }}
+                            >
+                              {suggestion}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {scryfallPreview && (

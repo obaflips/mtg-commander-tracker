@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Search } from 'lucide-react';
 import * as AirtableService from './airtableService';
 
@@ -11,6 +11,9 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [cardPreview, setCardPreview] = useState(null);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   const colorOptions = [
     { id: 'W', name: 'White', bg: '#FFFDE7', border: '#F57F17' },
@@ -20,6 +23,27 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
     { id: 'G', name: 'Green', bg: '#E8F5E9', border: '#2E7D32' },
   ];
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Close autocomplete when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showAutocomplete && !e.target.closest('input')) {
+        setShowAutocomplete(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showAutocomplete]);
+
   const toggleColor = (colorId) => {
     if (selectedColors.includes(colorId)) {
       setSelectedColors(selectedColors.filter(c => c !== colorId));
@@ -28,8 +52,52 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
     }
   };
 
-  const searchScryfall = async () => {
-    if (!commanderName.trim()) {
+  // Autocomplete search with debouncing
+  const handleCommanderNameChange = (value) => {
+    setCommanderName(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Don't search if less than 2 characters
+    if (value.trim().length < 2) {
+      setAutocompleteSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+    
+    // Debounce the search by 300ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(value.trim())}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setAutocompleteSuggestions(data.data || []);
+          setShowAutocomplete(data.data && data.data.length > 0);
+        }
+      } catch (err) {
+        console.error('Autocomplete error:', err);
+      }
+    }, 300);
+  };
+
+  const selectSuggestion = async (name) => {
+    setCommanderName(name);
+    setShowAutocomplete(false);
+    setAutocompleteSuggestions([]);
+    
+    // Immediately search for the card details
+    await searchScryfall(name);
+  };
+
+  const searchScryfall = async (nameOverride = null) => {
+    const searchName = nameOverride || commanderName.trim();
+    if (!searchName) {
       setError('Please enter a commander name');
       return;
     }
@@ -38,8 +106,9 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
       setSearching(true);
       setError('');
       
+      // Use fuzzy search instead of exact
       const response = await fetch(
-        `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(commanderName.trim())}`
+        `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(searchName)}`
       );
 
       if (!response.ok) {
@@ -50,6 +119,9 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
       setScryfallId(card.id);
       setCardPreview(card.image_uris?.art_crop || card.image_uris?.normal);
       
+      // Update input with correct name
+      setCommanderName(card.name);
+      
       // Auto-detect colors if not already selected
       if (selectedColors.length === 0 && card.colors) {
         setSelectedColors(card.colors);
@@ -57,7 +129,7 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
       
     } catch (err) {
       console.error('Error searching Scryfall:', err);
-      setError('Commander not found. Check spelling or enter Scryfall ID manually.');
+      setError('Commander not found. Try a different spelling.');
       setScryfallId('');
       setCardPreview(null);
     } finally {
@@ -174,32 +246,61 @@ export default function AddDeckModal({ players, onClose, onDeckAdded }) {
             >
               Commander Name
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={commanderName}
-                onChange={(e) => setCommanderName(e.target.value)}
-                placeholder="e.g., Atraxa, Praetors' Voice"
-                className="flex-1 px-4 py-3 border-2 border-gray-800 rounded-lg"
-                style={{ fontFamily: "'Indie Flower', cursive" }}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={searchScryfall}
-                disabled={searching}
-                className="px-4 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 border-2 border-blue-700 flex items-center gap-2"
-                style={{ fontFamily: "'Permanent Marker', cursive" }}
-              >
-                <Search size={20} />
-                {searching ? 'Searching...' : 'Search'}
-              </button>
+            <div className="relative">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={commanderName}
+                  onChange={(e) => handleCommanderNameChange(e.target.value)}
+                  onFocus={() => {
+                    if (autocompleteSuggestions.length > 0) {
+                      setShowAutocomplete(true);
+                    }
+                  }}
+                  placeholder="Start typing commander name..."
+                  className="flex-1 px-4 py-3 border-2 border-gray-800 rounded-lg"
+                  style={{ fontFamily: "'Indie Flower', cursive" }}
+                  autoFocus
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => searchScryfall()}
+                  disabled={searching}
+                  className="px-4 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 border-2 border-blue-700 flex items-center gap-2"
+                  style={{ fontFamily: "'Permanent Marker', cursive" }}
+                >
+                  <Search size={20} />
+                  {searching ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+
+              {/* Autocomplete Dropdown */}
+              {showAutocomplete && autocompleteSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-800 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                  {autocompleteSuggestions.slice(0, 8).map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => selectSuggestion(suggestion)}
+                      className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-200 last:border-b-0"
+                    >
+                      <span 
+                        className="text-gray-900 font-medium"
+                        style={{ fontFamily: "'Indie Flower', cursive", fontSize: '16px' }}
+                      >
+                        {suggestion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <p 
               className="text-sm text-gray-600 mt-1"
               style={{ fontFamily: "'Indie Flower', cursive" }}
             >
-              Click Search to find on Scryfall
+              Suggestions appear as you type
             </p>
           </div>
 

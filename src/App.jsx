@@ -55,6 +55,7 @@ export default function MTGCommanderApp() {
         player: sp.player,
         deck: sp.deck,
         life: 40,
+        poison: 0,
         isGuest: false,
         commanderDamage: gameSetup.selectedPlayers
           .filter(other => other.player.airtableId !== sp.player.airtableId)
@@ -99,6 +100,7 @@ export default function MTGCommanderApp() {
         isGuest: sp.isGuest || false,
         guestData: sp.guestData,
         life: 40,
+        poison: 0,
         commanderDamage: allPlayers
           .filter((other, otherIdx) => otherIdx !== idx)
           .map(other => ({

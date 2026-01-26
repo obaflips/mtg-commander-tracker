@@ -100,7 +100,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
               className="text-gray-600 mt-1 text-base"
               style={{ fontFamily: "'Indie Flower', cursive" }}
             >
-              Turn {game.turn} â€¢ {game.playerStates[game.currentPlayerIndex].player.name}'s turn
+              Turn {game.turn} • {game.playerStates[game.currentPlayerIndex].player.name}'s turn
             </p>
           </div>
           <button
@@ -140,7 +140,7 @@ export default function CampaignBattleTracker({ game, onUpdateGame, onEndGame })
               className="text-xl font-bold text-gray-900"
               style={{ fontFamily: "'Permanent Marker', cursive" }}
             >
-              Next Turn â†’
+              Next Turn →
             </span>
           </div>
         </button>

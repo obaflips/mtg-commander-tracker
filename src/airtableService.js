@@ -250,6 +250,11 @@ export async function getPlayerStats() {
   });
   
   participants.forEach(p => {
+    // Skip guest participants (they don't have player links)
+    if (!p.player || p.player.length === 0 || p.isGuest) {
+      return;
+    }
+    
     const playerAirtableId = p.player[0]; // First linked record ID
     if (statsMap[playerAirtableId]) {
       statsMap[playerAirtableId].games++;
@@ -315,6 +320,11 @@ export async function getDeckStats() {
   });
   
   participants.forEach(p => {
+    // Skip guest participants (they don't have deck links)
+    if (!p.deck || p.deck.length === 0 || p.isGuest) {
+      return;
+    }
+    
     const deckAirtableId = p.deck[0];
     if (statsMap[deckAirtableId]) {
       statsMap[deckAirtableId].games++;

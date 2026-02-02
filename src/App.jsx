@@ -168,14 +168,47 @@ export default function MTGCommanderApp() {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl font-bold mb-2" style={{ fontFamily: "'Cinzel', serif" }}>
+      <div className="min-h-screen bg-white relative overflow-hidden font-sans flex items-center justify-center">
+        {/* Graph paper background */}
+        <div
+          className="fixed inset-0 opacity-30"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(100, 149, 237, 0.15) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(100, 149, 237, 0.15) 1px, transparent 1px)
+            `,
+            backgroundSize: '20px 20px'
+          }}
+        />
+
+        {/* Paper texture overlay */}
+        <div
+          className="fixed inset-0 opacity-5 pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        <div className="relative text-center">
+          <div
+            className="text-5xl font-bold text-gray-800 mb-3"
+            style={{
+              fontFamily: "'Permanent Marker', cursive",
+              transform: 'rotate(-1deg)',
+              textShadow: '3px 3px 0px rgba(255, 200, 0, 0.3)'
+            }}
+          >
             Loading...
           </div>
-          <p className="text-purple-300">Fetching data from Airtable</p>
+          <p
+            className="text-gray-600 text-lg"
+            style={{ fontFamily: "'Indie Flower', cursive" }}
+          >
+            Gathering the chronicles...
+          </p>
         </div>
-        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet" />
+
+        <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap" rel="stylesheet" />
       </div>
     );
   }

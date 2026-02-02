@@ -5,6 +5,7 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
   const [placements, setPlacements] = useState({});
   const [winCondition, setWinCondition] = useState(null);
   const [turns, setTurns] = useState(game.results?.turns || game.turn);
+  const [isSaving, setIsSaving] = useState(false);
 
   const winConditions = [
     { id: 'Life Total', label: 'Life Total', icon: Heart, color: '#EF5350', bg: '#FFCDD2' },
@@ -52,19 +53,25 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
 
   const canSave = Object.keys(placements).length === game.playerStates.length && winCondition;
 
-  function handleSave() {
-    const finalLifeTotals = {};
-    game.playerStates.forEach(ps => {
-      const key = ps.player.airtableId || ps.player.name; // Use name for guests
-      finalLifeTotals[key] = ps.life;
-    });
-    
-    onSave({
-      turns,
-      placements,
-      winCondition,
-      finalLifeTotals
-    });
+  async function handleSave() {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const finalLifeTotals = {};
+      game.playerStates.forEach(ps => {
+        const key = ps.player.airtableId || ps.player.name; // Use name for guests
+        finalLifeTotals[key] = ps.life;
+      });
+
+      await onSave({
+        turns,
+        placements,
+        winCondition,
+        finalLifeTotals
+      });
+    } catch (err) {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -366,19 +373,19 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
       {/* Save Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-4 border-gray-800" style={{ borderStyle: 'dashed' }}>
         <button
-          disabled={!canSave}
+          disabled={!canSave || isSaving}
           onClick={handleSave}
-          className={`w-full relative ${!canSave && 'opacity-50 cursor-not-allowed'}`}
+          className={`w-full relative ${(!canSave || isSaving) && 'opacity-50 cursor-not-allowed'}`}
         >
-          <svg 
+          <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
             viewBox="0 0 400 70"
             preserveAspectRatio="none"
           >
             <rect
-              x="4" y="4" 
+              x="4" y="4"
               width="392" height="62"
-              fill={canSave ? "#4CAF50" : "#9E9E9E"}
+              fill={canSave && !isSaving ? "#4CAF50" : "#9E9E9E"}
               stroke="#000"
               strokeWidth="3"
               rx="8"
@@ -388,18 +395,18 @@ export default function CampaignChronicle({ game, onSave, onCancel }) {
               }}
             />
           </svg>
-          
+
           <div className="relative py-4 flex items-center justify-center gap-3">
-            <Save 
-              size={24} 
+            <Save
+              size={24}
               className="text-white"
               strokeWidth={2.5}
             />
-            <span 
+            <span
               className="text-2xl font-bold text-white"
               style={{ fontFamily: "'Permanent Marker', cursive" }}
             >
-              Save to Chronicles
+              {isSaving ? 'Saving...' : 'Save to Chronicles'}
             </span>
           </div>
         </button>
